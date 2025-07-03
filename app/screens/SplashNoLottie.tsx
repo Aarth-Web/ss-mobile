@@ -1,5 +1,5 @@
-import { View, StyleSheet, Text, Platform } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { View, StyleSheet, Image, Text } from "react-native";
+import { useEffect } from "react";
 import Animated, {
   FadeInDown,
   FadeInUp,
@@ -8,20 +8,15 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
-import LottieView from "lottie-react-native";
 import { GradientBackground, THEME } from "../components/UIComponents";
 
-export default function Splash({
+export default function SplashNoLottie({
   onAnimationFinish,
-  onLottieError,
 }: {
   onAnimationFinish: () => void;
-  onLottieError?: () => void;
 }) {
-  const animation = useRef(null);
   const scaleAnim = useSharedValue(0.8);
   const opacityAnim = useSharedValue(0);
-  const [lottieLoaded, setLottieLoaded] = useState(true);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -36,17 +31,6 @@ export default function Splash({
       easing: Easing.out(Easing.exp),
     });
     opacityAnim.value = withTiming(1, { duration: 1000 });
-
-    // Try to load Lottie
-    try {
-      if (Platform.OS !== "web") {
-        require("../../assets/lottie/student.json");
-      }
-    } catch (error) {
-      console.warn("Lottie animation failed to load:", error);
-      setLottieLoaded(false);
-      if (onLottieError) onLottieError();
-    }
 
     const timer = setTimeout(() => {
       onAnimationFinish();
@@ -78,28 +62,18 @@ export default function Splash({
           <AnimatedText style={styles.welcomeText}>SmartShala</AnimatedText>
         </Animated.View>
 
-        <Animated.View style={[styles.lottieContainer, animatedStyle]}>
-          {Platform.OS === "web" || !lottieLoaded ? (
-            <View style={styles.fallbackContainer}>
-              <Text style={styles.fallbackText}>SmartShala</Text>
-            </View>
-          ) : (
-            <LottieView
-              ref={animation}
-              source={require("../../assets/lottie/student.json")}
-              autoPlay
-              loop={true}
-              style={styles.lottie}
-              renderMode="AUTOMATIC"
-            />
-          )}
+        <Animated.View style={[styles.logoContainer, animatedStyle]}>
+          <View style={styles.fallbackContainer}>
+            <Text style={styles.fallbackText}>SmartShala</Text>
+            <Text style={styles.fallbackSubText}>Your school management solution</Text>
+          </View>
         </Animated.View>
       </View>
 
       <View style={styles.bottomSection}>
         <Animated.View entering={FadeInDown.delay(800).springify()}>
           <AnimatedText style={styles.taglineText}>
-            Empowering Education, One Class at a Time 🚀
+            Simplified Attendance & Student Management
           </AnimatedText>
         </Animated.View>
       </View>
@@ -137,14 +111,31 @@ const styles = StyleSheet.create({
     height: 48,
     tintColor: "#ffffff",
   },
-  lottieContainer: {
+  logoContainer: {
     marginVertical: 30,
     alignItems: "center",
     justifyContent: "center",
   },
-  lottie: {
+  fallbackContainer: {
     width: 240,
     height: 200,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    padding: 20,
+  },
+  fallbackText: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: THEME.text.primary,
+    marginBottom: 10,
+  },
+  fallbackSubText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: THEME.text.secondary,
+    textAlign: "center",
   },
   welcomeSmallText: {
     fontSize: 12,
@@ -173,18 +164,5 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     marginTop: 10,
     maxWidth: "90%",
-  },
-  fallbackContainer: {
-    width: 240,
-    height: 200,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-  },
-  fallbackText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: THEME.text.primary,
   },
 });

@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import {
   UserCircleIcon,
   MagnifyingGlassIcon,
   UsersIcon,
   ArrowRightIcon,
+  XCircleIcon,
 } from "react-native-heroicons/solid";
 import { GradientBackground, Button, THEME } from "../components/UIComponents";
 import { useAuth } from "../hooks/authContext";
@@ -35,6 +37,7 @@ export default function Home() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [filtered, setFiltered] = useState<ClassItem[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true); // Add loading state
   const { token, user, logout } = useAuth();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -42,6 +45,11 @@ export default function Home() {
 
   // Function to fetch classes
   const fetchClasses = async () => {
+    // Only show loading indicator if we're not refreshing
+    if (!refreshing) {
+      setLoading(true);
+    }
+
     try {
       const res = await fetch(
         `${apiConfig.baseUrl}/classrooms`,
@@ -58,6 +66,10 @@ export default function Home() {
       if (!err.message.includes("session has expired")) {
         Alert.alert("Error", err.message || "Failed to fetch classes");
       }
+    } finally {
+      // Set loading to false regardless of success or failure
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -65,6 +77,10 @@ export default function Home() {
   useFocusEffect(
     React.useCallback(() => {
       fetchClasses();
+      // Clean up function to avoid state updates after component unmount
+      return () => {
+        // Cancel any pending operations if needed
+      };
     }, [token])
   );
 
@@ -128,46 +144,114 @@ export default function Home() {
       </View>
 
       {/* 🔍 Search */}
-      <View className="flex-row items-center bg-gray-300 rounded-xl px-2 py-1 mb-4 border border-slate-700/50">
-        <MagnifyingGlassIcon size={20} color="#94a3b8" />
+      <View className="flex-row items-center bg-white/10 rounded-xl px-3 py-2.5 mb-4 border border-slate-700/50">
+        <MagnifyingGlassIcon size={20} color={THEME.text.secondary} />
         <TextInput
-          className="ml-1 flex-1 text-base text-black "
+          className="ml-2 flex-1 text-base text-white"
           placeholder="Search your classes"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={THEME.text.secondary}
           value={search}
           onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
+        {search ? (
+          <TouchableOpacity onPress={() => setSearch("")} className="p-1">
+            <XCircleIcon size={20} color={THEME.text.secondary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {/* Classes Heading */}
       <Text className="text-xl font-semibold text-white mb-4">My Classes</Text>
 
       {/* 📚 Class Grid */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item._id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        refreshing={refreshing}
-        onRefresh={async () => {
-          setRefreshing(true);
-          await fetchClasses();
-          setRefreshing(false);
-        }}
-        ListEmptyComponent={() => (
-          <View className="py-8 items-center">
-            <Text className="text-slate-300 text-center">No classes found</Text>
-            <Text className="text-slate-400 text-center mt-1 text-sm">
-              Create a new class to get started
-            </Text>
+      {loading && !refreshing ? (
+        <View className="flex-1 items-center justify-center py-10">
+          <View className="bg-purple-500/10 p-4 rounded-full mb-4">
+            <UsersIcon size={32} color={THEME.text.secondary} />
           </View>
-        )}
-      />
+          <Text className="text-white text-lg font-medium">
+            Loading classes...
+          </Text>
+          <View className="mt-4 flex-row items-center justify-center">
+            {/* Replacing with a proper ActivityIndicator */}
+            <View className="h-10 justify-center">
+              <ActivityIndicator size="small" color={THEME.primary} />
+            </View>
+          </View>
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item._id}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await fetchClasses();
+          }}
+          ListEmptyComponent={() => (
+            <View className="py-8 items-center">
+              <View className="bg-purple-500/10 p-4 rounded-full mb-4">
+                <UsersIcon size={32} color={THEME.text.secondary} />
+              </View>
+              {search ? (
+                // Show this when search has no results
+                <>
+                  <Text className="text-white text-lg font-medium text-center">
+                    No matching classes
+                  </Text>
+                  <Text className="text-slate-400 text-center mt-2 px-8">
+                    Try a different search term or clear the search
+                  </Text>
+                  <TouchableOpacity
+                    className="mt-6 bg-purple-600 px-5 py-2.5 rounded-lg"
+                    onPress={() => setSearch("")}
+                  >
+                    <Text className="text-white font-medium">Clear Search</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                // Show this when there are no classes at all
+                <>
+                  <Text className="text-white text-lg font-medium text-center">
+                    No classes found
+                  </Text>
+                  <Text className="text-slate-400 text-center mt-2 px-8">
+                    Create a new classroom to get started with attendance
+                    management
+                  </Text>
+                  <TouchableOpacity
+                    className="mt-6 bg-purple-600 px-5 py-2.5 rounded-lg"
+                    onPress={() =>
+                      navigation.navigate("ClassroomDetails", { isNew: true })
+                    }
+                  >
+                    <Text className="text-white font-medium">
+                      + Create Classroom
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+        />
+      )}
 
       {/* Add Class Button */}
       <TouchableOpacity
-        className="absolute bottom-6 left-0 right-0 mx-5 bg-purple-600 rounded-xl py-3 items-center"
+        className="absolute bottom-6 left-0 right-0 mx-5 bg-purple-600 rounded-xl py-3.5 items-center shadow-lg"
+        style={{
+          shadowColor: THEME.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 10,
+          elevation: 5,
+        }}
+        activeOpacity={0.8}
         onPress={() => navigation.navigate("ClassroomDetails", { isNew: true })}
       >
         <View className="flex-row items-center">

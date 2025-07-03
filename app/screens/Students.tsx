@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   AcademicCapIcon,
   PhoneIcon,
   EnvelopeIcon,
+  XCircleIcon,
 } from "react-native-heroicons/solid";
 import { GradientBackground, Button, THEME } from "../components/UIComponents";
 import { useAuth } from "../hooks/authContext";
@@ -36,27 +37,52 @@ type StudentItem = {
   isActive: boolean;
 };
 
-const MOCK_USER = {
-  name: "Ganu Singh Thakur",
-  email: "ganuthakur@school.edu",
-  mobile: "9876543210",
-};
-
 export default function Students() {
   const [students, setStudents] = useState<StudentItem[]>([]);
-  const [filtered, setFiltered] = useState<StudentItem[]>([]);
   const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const { token, user, logout } = useAuth();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  // Function to fetch students
-  const fetchStudents = async (showLoading = true) => {
+  // Function to fetch students with search and pagination
+  const fetchStudents = async (
+    options: {
+      showLoading?: boolean;
+      resetPage?: boolean;
+      searchQuery?: string;
+      pageNumber?: number;
+    } = {}
+  ) => {
+    const {
+      showLoading = true,
+      resetPage = false,
+      searchQuery = search,
+      pageNumber = resetPage ? 1 : page,
+    } = options;
+
+    // Set a request ID to track if this is the latest request
+    const requestId = Date.now();
+
     try {
-      if (showLoading) setLoading(true);
+      // Set the appropriate loading state based on if it's a search or initial load
+      if (showLoading) {
+        searchQuery ? setSearchLoading(true) : setLoading(true);
+      }
+
+      // If resetting page due to new search
+      if (resetPage) {
+        setPage(1);
+      }
 
       // Check if user and school ID are available
       if (!user || !user.school) {
@@ -77,73 +103,207 @@ export default function Students() {
         return;
       }
 
-      const response = await fetch(
-        `${apiConfig.baseUrl}/users/school/${user?.school}`,
-        createAuthFetchOptions(token)
-      );
+      // Build the query URL with pagination and optional search parameters
+      let url = `${apiConfig.baseUrl}/users/school/${user.school}?page=${pageNumber}&limit=${limit}`;
 
-      const data = await handleApiResponse(response, logout);
+      // Add search parameter if provided
+      if (searchQuery) {
+        url += `&search=${encodeURIComponent(searchQuery)}`;
+      }
 
-      // Filter only students (not teachers or other roles)
-      const studentsList = data.users.filter(
-        (user: StudentItem) => user.role === "student"
-      );
-      setStudents(studentsList);
-      setFiltered(studentsList);
+      // Handle network connection errors
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+
+      try {
+        const response = await fetch(url, {
+          ...createAuthFetchOptions(token),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        // Handle API response
+        const data = await handleApiResponse(response, logout);
+
+        // Filter only students (not teachers or other roles)
+        const studentsList = data.users.filter(
+          (user: StudentItem) => user.role === "student"
+        );
+
+        // Update state with pagination information
+        setStudents(studentsList);
+        setTotalStudents(data.total);
+        setTotalPages(data.pages || Math.ceil(data.total / limit));
+        setPage(data.page);
+      } catch (fetchError: any) {
+        if (fetchError.name === "AbortError") {
+          console.log("Request timed out");
+          Alert.alert(
+            "Connection Error",
+            "The request timed out. Please check your internet connection and try again."
+          );
+        } else {
+          throw fetchError; // Re-throw to be caught by outer catch block
+        }
+      }
     } catch (err: any) {
       console.log("Error fetching students:", err);
       // Show an error alert if the error is not related to authentication
       // Authentication errors are handled by the handleApiResponse function
-      if (!err.message.includes("session has expired")) {
-        Alert.alert("Error", err.message || "Failed to fetch students");
+      if (!err.message?.includes("session has expired")) {
+        Alert.alert("Error", err.message || "Failed to fetch students", [
+          {
+            text: "Retry",
+            onPress: () => fetchStudents(options),
+          },
+          {
+            text: "OK",
+            style: "cancel",
+          },
+        ]);
       }
+
+      // If search failed, show empty results
+      setStudents([]);
+      setTotalStudents(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
+      setSearchLoading(false);
+      setRefreshing(false);
     }
   };
 
   // Focus listener to refresh students when returning to this screen
   useFocusEffect(
     React.useCallback(() => {
-      fetchStudents();
-    }, [token])
+      // Reset to page 1 with no search when returning to screen
+      setSearch("");
+      setPage(1);
+      setSearchLoading(false);
+
+      // Fetch students when screen is focused
+      const loadData = async () => {
+        try {
+          await fetchStudents({ resetPage: true, searchQuery: "" });
+        } catch (error) {
+          console.error("Error fetching students on screen focus:", error);
+        }
+      };
+
+      loadData();
+
+      // Cleanup function to clear any pending search timeouts
+      return () => {
+        if (searchTimeout) {
+          clearTimeout(searchTimeout);
+          setSearchTimeout(null);
+        }
+      };
+    }, []) // Empty dependency array as we want this to run only on mount and focus
   );
 
-  useEffect(() => {
-    const q = search.toLowerCase();
-    setFiltered(
-      students.filter(
-        (student) =>
-          student.name.toLowerCase().includes(q) ||
-          student.registrationId.toLowerCase().includes(q)
-      )
-    );
-  }, [search, students]);
+  // Memoize fetchStudents to prevent unnecessary re-renders
+  const memoizedFetchStudents = useCallback(
+    (
+      options: {
+        showLoading?: boolean;
+        resetPage?: boolean;
+        searchQuery?: string;
+        pageNumber?: number;
+      } = {}
+    ) => {
+      fetchStudents(options);
+    },
+    [user, token, page, limit, search]
+  );
+
+  // Debounced search handler
+  const handleSearchChange = useCallback(
+    (text: string) => {
+      setSearch(text);
+
+      // Clear any existing timeout
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+
+      // If search is empty, reset to first page and load all students
+      if (!text) {
+        memoizedFetchStudents({ resetPage: true, searchQuery: "" });
+        return;
+      }
+
+      // Show immediate visual feedback that search is processing
+      setSearchLoading(true);
+
+      // Set a new timeout for debouncing
+      const timeout = setTimeout(() => {
+        memoizedFetchStudents({ resetPage: true, searchQuery: text });
+      }, 500); // 500ms debounce delay
+
+      setSearchTimeout(timeout);
+    },
+    [searchTimeout, memoizedFetchStudents]
+  );
+
+  // Clear search handler with optimistic UI update
+  const handleClearSearch = useCallback(() => {
+    // Immediately update UI
+    setSearch("");
+    setSearchLoading(true);
+
+    // Clear timeout if any
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Fetch all students
+    fetchStudents({ resetPage: true, searchQuery: "" });
+  }, [searchTimeout, fetchStudents]);
+
+  // This is now handled in the memoized version above
 
   const renderItem = ({ item }: { item: StudentItem }) => (
     <TouchableOpacity
       className="w-full mb-4 rounded-xl overflow-hidden bg-white/5 border border-white/10"
+      activeOpacity={0.7}
       onPress={() => {
         navigation.navigate("EditStudent", { studentId: item._id });
       }}
     >
-      <View className="p-4">
-        <Text className="text-base font-semibold text-white">{item.name}</Text>
-        <View className="flex-row items-center mt-1.5">
-          <AcademicCapIcon size={14} color="#94a3b8" />
-          <Text className="text-slate-300 ml-1.5 text-sm">
-            ID: {item.registrationId}
-          </Text>
+      <View className="p-5">
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1 pr-3">
+            <Text className="text-base font-semibold text-white">
+              {item.name}
+            </Text>
+            <Text className="text-xs text-slate-400 mt-0.5">
+              {item.isActive ? "Active Student" : "Inactive Student"}
+            </Text>
+          </View>
+          <View className="bg-purple-500/20 px-2.5 py-1 rounded-full">
+            <Text className="text-purple-400 text-xs font-medium">
+              ID: {item.registrationId || "N/A"}
+            </Text>
+          </View>
         </View>
 
-        <View className="flex-row items-center mt-1.5">
-          <EnvelopeIcon size={14} color="#94a3b8" />
-          <Text className="text-slate-300 ml-1.5 text-sm">{item.email}</Text>
-        </View>
+        <View className="mt-3 pt-3 border-t border-white/5">
+          <View className="flex-row items-center mt-1">
+            <EnvelopeIcon size={14} color={THEME.text.secondary} />
+            <Text className="text-slate-300 ml-1.5 text-sm" numberOfLines={1}>
+              {item.email || "No email provided"}
+            </Text>
+          </View>
 
-        <View className="flex-row items-center mt-1.5">
-          <PhoneIcon size={14} color="#94a3b8" />
-          <Text className="text-slate-300 ml-1.5 text-sm">{item.mobile}</Text>
+          <View className="flex-row items-center mt-2">
+            <PhoneIcon size={14} color={THEME.text.secondary} />
+            <Text className="text-slate-300 ml-1.5 text-sm">
+              {item.mobile || "No phone number"}
+            </Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -165,25 +325,51 @@ export default function Students() {
             SmartShala
           </Text>
         </View>
-        <TouchableOpacity onPress={() => setShowModal(true)}>
+        <TouchableOpacity
+          onPress={() => {
+            // Navigate to Settings tab
+            (navigation as any).navigate("Settings");
+          }}
+        >
           <UserCircleIcon size={34} color={THEME.text.primary} />
         </TouchableOpacity>
       </View>
 
       {/* 🔍 Search */}
-      <View className="flex-row items-center bg-gray-300 rounded-xl px-2 py-1 mb-4 border border-slate-700/50">
-        <MagnifyingGlassIcon size={20} color="#94a3b8" />
+      <View className="flex-row items-center bg-white/10 rounded-xl px-3 py-2.5 mb-4 border border-slate-700/50">
+        <MagnifyingGlassIcon size={20} color={THEME.text.secondary} />
         <TextInput
-          className="ml-1 flex-1 text-base text-black "
-          placeholder="Search students by name or ID"
-          placeholderTextColor="#94a3b8"
+          className="ml-2 flex-1 text-base text-white"
+          placeholder="Search by name, email, ID, or mobile"
+          placeholderTextColor={THEME.text.secondary}
           value={search}
-          onChangeText={setSearch}
+          onChangeText={handleSearchChange}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
+        {searchLoading ? (
+          <ActivityIndicator
+            size="small"
+            color={THEME.primary}
+            style={{ marginRight: 8 }}
+          />
+        ) : search ? (
+          <TouchableOpacity onPress={handleClearSearch} className="p-1">
+            <XCircleIcon size={20} color={THEME.text.secondary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      {/* Students Heading */}
-      <Text className="text-xl font-semibold text-white mb-4">Students</Text>
+      {/* Students Heading with Count */}
+      <View className="flex-row justify-between items-center mb-4">
+        <Text className="text-xl font-semibold text-white">Students</Text>
+        {totalStudents > 0 && (
+          <Text className="text-slate-300 text-sm">
+            {search ? "Found " : "Total "}
+            {totalStudents} student{totalStudents !== 1 ? "s" : ""}
+          </Text>
+        )}
+      </View>
 
       {/* 👨‍🎓 Students List */}
       {loading && !refreshing ? (
@@ -192,34 +378,110 @@ export default function Students() {
           <Text className="text-slate-300 mt-3">Loading students...</Text>
         </View>
       ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item._id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={async () => {
-            setRefreshing(true);
-            await fetchStudents();
-            setRefreshing(false);
-          }}
-          ListEmptyComponent={() => (
-            <View className="py-8 items-center">
-              <Text className="text-slate-300 text-center">
-                No students found
-              </Text>
-              <Text className="text-slate-400 text-center mt-1 text-sm">
-                Add students to get started
-              </Text>
-            </View>
-          )}
-        />
+        <>
+          <FlatList
+            data={students}
+            keyExtractor={(item) => item._id}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await fetchStudents({ showLoading: false, searchQuery: search });
+              setRefreshing(false);
+            }}
+            ListEmptyComponent={() => (
+              <View className="py-12 items-center">
+                <View className="bg-purple-500/10 p-4 rounded-full mb-4">
+                  <AcademicCapIcon size={32} color={THEME.text.secondary} />
+                </View>
+                <Text className="text-white text-lg font-medium text-center">
+                  {search ? "No matching students found" : "No students found"}
+                </Text>
+                <Text className="text-slate-400 text-center mt-2 px-8">
+                  {search
+                    ? "Try a different search term or clear search to view all students"
+                    : "Add your first student by tapping the button below"}
+                </Text>
+                {search && (
+                  <TouchableOpacity
+                    onPress={handleClearSearch}
+                    className="bg-purple-600 px-5 py-2.5 rounded-lg mt-6"
+                  >
+                    <Text className="text-white font-medium">Clear Search</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            ListFooterComponent={() =>
+              totalPages > 1 ? (
+                <View className="flex-col justify-center items-center py-6">
+                  <Text className="text-slate-300 mb-3">
+                    Page {page} of {totalPages} • Showing {students.length} of{" "}
+                    {totalStudents} students
+                  </Text>
+                  <View className="flex-row justify-center">
+                    <TouchableOpacity
+                      disabled={page === 1}
+                      onPress={() =>
+                        fetchStudents({
+                          pageNumber: page - 1,
+                          searchQuery: search,
+                        })
+                      }
+                      className={`px-4 py-2.5 mr-2 rounded-lg ${
+                        page === 1 ? "bg-slate-700/60" : "bg-purple-600"
+                      }`}
+                      style={{
+                        opacity: page === 1 ? 0.6 : 1,
+                        minWidth: 100,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text className="text-white font-medium">Previous</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      disabled={page === totalPages}
+                      onPress={() =>
+                        fetchStudents({
+                          pageNumber: page + 1,
+                          searchQuery: search,
+                        })
+                      }
+                      className={`px-4 py-2.5 ml-2 rounded-lg ${
+                        page === totalPages
+                          ? "bg-slate-700/60"
+                          : "bg-purple-600"
+                      }`}
+                      style={{
+                        opacity: page === totalPages ? 0.6 : 1,
+                        minWidth: 100,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text className="text-white font-medium">Next</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null
+            }
+          />
+        </>
       )}
 
       {/* Add Student Button */}
       <TouchableOpacity
-        className="absolute bottom-6 left-0 right-0 mx-5 bg-purple-600 rounded-xl py-3 items-center"
+        className="absolute bottom-6 left-0 right-0 mx-5 bg-purple-600 rounded-xl py-3.5 items-center shadow-lg"
+        style={{
+          shadowColor: THEME.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 10,
+          elevation: 5,
+        }}
+        activeOpacity={0.8}
         onPress={() => {
           navigation.navigate("AddStudent");
         }}
@@ -230,56 +492,6 @@ export default function Students() {
           </Text>
         </View>
       </TouchableOpacity>
-
-      {/* 👤 Modal - Same as Home screen for consistency */}
-      <Modal visible={showModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-slate-900 rounded-2xl p-6 border border-slate-700">
-            <View className="flex-row justify-center items-center mb-4">
-              <Image
-                source={require("../../assets/logo.png")}
-                style={{ width: 20, height: 20 }}
-                resizeMode="contain"
-              />
-              <Text className="text-xl font-bold text-white ml-2">
-                Teacher Profile
-              </Text>
-            </View>
-            <Text className="text-slate-300 mb-2 ">Name: {MOCK_USER.name}</Text>
-            <Text className="text-slate-300 mb-2 ">
-              Email: {MOCK_USER.email}
-            </Text>
-            <Text className="text-slate-300 mb-4 ">
-              Mobile: {MOCK_USER.mobile}
-            </Text>
-
-            <Button
-              title="Reset Password"
-              onPress={() => {}}
-              style={{ marginTop: 10 }}
-            />
-            <Button
-              title="Logout"
-              variant="secondary"
-              onPress={() => {
-                setShowModal(false);
-                setTimeout(() => {
-                  // Gives the modal time to close before logging out
-                  logout();
-                }, 300);
-              }}
-              style={{ marginTop: 10 }}
-            />
-
-            <TouchableOpacity
-              onPress={() => setShowModal(false)}
-              className="mt-4"
-            >
-              <Text className="text-center text-slate-400 ">Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </GradientBackground>
   );
 }

@@ -1,12 +1,9 @@
 import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Text, TextInput, View, StatusBar, SafeAreaView } from "react-native";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import ErrorBoundary from "./app/components/ErrorBoundary";
+import { Text, TextInput, View } from "react-native";
 import Login from "./app/screens/Login";
-import Splash from "./app/screens/Splash";
-import SplashNoLottie from "./app/screens/SplashNoLottie";
+import Splash from "./app/screens/SplashNoLottie";
 import Tabs from "./app/screens/Tabs";
 import ClassroomDetails from "./app/screens/ClassroomDetails";
 import ClassroomStudents from "./app/screens/ClassroomStudents";
@@ -27,64 +24,51 @@ const Stack = createNativeStackNavigator();
 function AppNavigator() {
   const { token } = useAuth();
   const [showSplash, setShowSplash] = React.useState(true);
-  const [lottieError, setLottieError] = React.useState(false);
 
-  // Try to use Lottie splash but fall back to non-Lottie if there's an error
-  if (showSplash) {
-    if (lottieError) {
-      return <SplashNoLottie onAnimationFinish={() => setShowSplash(false)} />;
-    }
-    return (
-      <Splash
-        onAnimationFinish={() => setShowSplash(false)}
-        onLottieError={() => setLottieError(true)}
-      />
-    );
-  }
+  if (showSplash)
+    return <Splash onAnimationFinish={() => setShowSplash(false)} />;
 
   return (
-    <ErrorBoundary>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {token ? (
-            <>
-              <Stack.Screen name="Tabs" component={Tabs} />
-              <Stack.Screen
-                name="ClassroomDetails"
-                component={ClassroomDetails}
-              />
-              <Stack.Screen name="AddStudent" component={AddStudent} />
-              <Stack.Screen name="EditStudent" component={EditStudent} />
-              <Stack.Screen
-                name="AddStudentsToClassroom"
-                component={AddStudentsToClassroom}
-              />
-              <Stack.Screen
-                name="ClassroomStudents"
-                component={ClassroomStudents}
-              />
-              <Stack.Screen name="TakeAttendance" component={TakeAttendance} />
-              <Stack.Screen
-                name="ConfirmAbsentees"
-                component={ConfirmAbsentees}
-              />
-              <Stack.Screen
-                name="AttendanceRecords"
-                component={AttendanceRecords}
-              />
-              <Stack.Screen
-                name="AttendanceRecordDetails"
-                component={AttendanceRecordDetails}
-              />
-              <Stack.Screen name="ResetPassword" component={ResetPassword} />
-              <Stack.Screen name="EditProfile" component={EditProfile} />
-            </>
-          ) : (
-            <Stack.Screen name="Login" component={Login} />
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-    </ErrorBoundary>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {token ? (
+          <>
+            <Stack.Screen name="Tabs" component={Tabs} />
+            <Stack.Screen
+              name="ClassroomDetails"
+              component={ClassroomDetails}
+            />
+            <Stack.Screen name="AddStudent" component={AddStudent} />
+            <Stack.Screen name="EditStudent" component={EditStudent} />
+            <Stack.Screen
+              name="AddStudentsToClassroom"
+              component={AddStudentsToClassroom}
+            />
+            <Stack.Screen
+              name="ClassroomStudents"
+              component={ClassroomStudents}
+            />
+            <Stack.Screen name="TakeAttendance" component={TakeAttendance} />
+            <Stack.Screen
+              name="ConfirmAbsentees"
+              component={ConfirmAbsentees}
+            />
+            <Stack.Screen
+              name="AttendanceRecords"
+              component={AttendanceRecords}
+            />
+            <Stack.Screen
+              name="AttendanceRecordDetails"
+              component={AttendanceRecordDetails}
+            />
+            <Stack.Screen name="ResetPassword" component={ResetPassword} />
+            <Stack.Screen name="EditProfile" component={EditProfile} />
+          </>
+        ) : (
+          <Stack.Screen name="Login" component={Login} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
@@ -149,12 +133,8 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-      <ExpoStatusBar style="light" />
-      <AuthProvider>
-        <AppNavigator />
-      </AuthProvider>
-    </ErrorBoundary>
+    <AuthProvider>
+      <AppNavigator />
+    </AuthProvider>
   );
 }

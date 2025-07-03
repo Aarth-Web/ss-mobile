@@ -11,9 +11,8 @@ module.exports = function (api) {
           path: ".env",
           blacklist: null,
           whitelist: null,
-          safe: true,
-          allowUndefined: false,
-          safe: process.env.NODE_ENV !== "production",
+          allowUndefined: true, // Allow undefined environment variables
+          safe: false, // Do not throw if .env is missing
         },
       ],
     ],

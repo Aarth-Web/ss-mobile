@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, Alert, TouchableOpacity } from "react-native";
+import { View, Text, Alert, TouchableOpacity, StyleSheet } from "react-native";
 import { useAuth } from "../hooks/authContext";
 import apiConfig from "../config/api";
 import { createAuthFetchOptions } from "../utils/apiHelpers";
@@ -12,11 +12,13 @@ import {
 } from "../components/UIComponents";
 import KeyboardAwareWrapper from "../components/KeyboardAwareWrapper";
 import { EyeIcon, EyeSlashIcon } from "react-native-heroicons/outline";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 export default function Login() {
   const [registrationId, setRegistrationId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
     registrationId?: string;
     password?: string;
@@ -36,6 +38,8 @@ export default function Login() {
   const handleLogin = async () => {
     if (!validate()) return;
 
+    setIsLoading(true);
+
     try {
       const response = await fetch(`${apiConfig.baseUrl}/auth/login`, {
         method: "POST",
@@ -53,6 +57,8 @@ export default function Login() {
       }
     } catch (err) {
       Alert.alert("Network Error", "Unable to connect to server.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -61,8 +67,15 @@ export default function Login() {
       <KeyboardAwareWrapper
         contentContainerStyle={{ padding: 24, justifyContent: "center" }}
       >
-        <View style={{ marginBottom: 40 }}>
-          <Heading text="SmartShala Login" />
+        <View style={{ marginBottom: 40, alignItems: "center" }}>
+          <Animated.Image
+            style={styles.logo}
+            entering={FadeInDown.delay(100).springify()}
+            source={require("../../assets/adaptive-logo.png")}
+            resizeMode="contain"
+            className="text-white mb-6"
+            tintColor={"#ffffff"}
+          />
           <Subheading text="Welcome back! Please login to continue." />
         </View>
 
@@ -91,11 +104,7 @@ export default function Login() {
           />
           <TouchableOpacity
             onPress={() => setShowPassword((prev) => !prev)}
-            style={{
-              position: "absolute",
-              right: 14,
-              bottom: errors.password ? 42 : 18,
-            }}
+            className="absolute right-4 bottom-7"
           >
             {showPassword ? (
               <EyeSlashIcon size={22} color="#cbd5e1" />
@@ -105,8 +114,23 @@ export default function Login() {
           </TouchableOpacity>
         </View>
 
-        <Button title="Login" onPress={handleLogin} style={{ marginTop: 16 }} />
+        <Button
+          title="Login"
+          onPress={handleLogin}
+          loading={isLoading}
+          disabled={isLoading}
+          style={{ marginTop: 16 }}
+          loadingText="Logging in..."
+        />
       </KeyboardAwareWrapper>
     </GradientBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  logo: {
+    width: 48,
+    height: 48,
+    tintColor: "#ffffff",
+  },
+});

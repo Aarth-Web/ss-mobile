@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 3.10.0"
+    "version": ">= 3.10.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -18,6 +19,18 @@
       "env": {
         "APP_ENV": "staging"
       }
+    },
+    "apk-mvp": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "applicationArchivePath": "android/app/build/outputs/apk/release/smartshala.apk"
+      },
+      "env": {
+        "APP_ENV": "production"
+      },
+      "channel": "mvp"
     },
     "production": {
       "autoIncrement": true,

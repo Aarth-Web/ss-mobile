@@ -223,7 +223,9 @@ export default function AddStudent() {
           </View>
 
           <View className="mb-4">
-            <Text className="text-white text-sm mb-2">Mobile Number</Text>
+            <Text className="text-white text-sm mb-2">
+              Parent's Mobile Number
+            </Text>
             <View
               className={`bg-white/10 rounded-xl p-3 border ${
                 mobileError ? "border-red-400" : "border-white/20"

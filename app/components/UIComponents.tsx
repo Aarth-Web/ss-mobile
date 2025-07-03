@@ -114,6 +114,8 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   disabled?: boolean;
+  loading?: boolean;
+  loadingText?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -123,6 +125,8 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
   disabled = false,
+  loading = false,
+  loadingText = "Loading...",
 }) => {
   const gradientColors =
     variant === "primary" ? THEME.button.primary : THEME.button.secondary;
@@ -130,7 +134,7 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       className="rounded-lg overflow-hidden"
       style={style}
       activeOpacity={0.8}
@@ -142,16 +146,43 @@ export const Button: React.FC<ButtonProps> = ({
           borderRadius: 8,
           alignItems: "center",
           justifyContent: "center",
-          opacity: disabled ? 0.6 : 1,
+          opacity: disabled || loading ? 0.6 : 1,
           backgroundColor:
             variant === "primary"
               ? THEME.button.primary
               : THEME.button.secondary,
+          flexDirection: "row",
         }}
       >
-        <Text className="text-white font-semibold text-base" style={textStyle}>
-          {title}
-        </Text>
+        {loading ? (
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                width: 16,
+                height: 16,
+                borderRadius: 8,
+                borderWidth: 2,
+                borderColor: "white",
+                borderTopColor: "transparent",
+                marginRight: 8,
+              }}
+              className="animate-spin"
+            />
+            <Text
+              className="text-white font-semibold text-base"
+              style={textStyle}
+            >
+              {loadingText}
+            </Text>
+          </View>
+        ) : (
+          <Text
+            className="text-white font-semibold text-base"
+            style={textStyle}
+          >
+            {title}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
