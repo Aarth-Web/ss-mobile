@@ -321,7 +321,10 @@ export default function Students() {
             className="text-white"
             tintColor={"#ffffff"}
           />
-          <Text className="text-lg text-white font-semibold ml-0.5">
+          <Text
+            className="text-lg text-white ml-0.5"
+            style={{ fontFamily: "RedditSans-Bold" }}
+          >
             SmartShala
           </Text>
         </View>

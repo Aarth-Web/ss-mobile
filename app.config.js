@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 
-// Helper function to read environment variables from .env file
 function parseEnvFile(filePath) {
   try {
     if (!fs.existsSync(filePath)) {
@@ -16,7 +15,6 @@ function parseEnvFile(filePath) {
       if (match) {
         const key = match[1].trim();
         let value = match[2].trim();
-        // Remove quotes if they exist
         if (value.startsWith('"') && value.endsWith('"')) {
           value = value.slice(1, -1);
         }
@@ -31,11 +29,9 @@ function parseEnvFile(filePath) {
   }
 }
 
-// Read the environment file
 const envPath = path.resolve(__dirname, ".env");
 const env = parseEnvFile(envPath);
 
-// Default config that will be overridden by app.json
 module.exports = {
   name: "Smart Shala",
   slug: "ss-mobile",
@@ -49,7 +45,6 @@ module.exports = {
     backgroundColor: "#ffffff",
   },
   extra: {
-    // Pass environment variables to the app
     API_BASE_URL: env.API_BASE_URL || "https://ss-backend-uqx4.onrender.com",
     AUTH_TOKEN_EXPIRY_DAYS: env.AUTH_TOKEN_EXPIRY_DAYS || "7",
     APP_ENV: env.APP_ENV || "development",
@@ -77,10 +72,24 @@ module.exports = {
     },
     icon: "./assets/logo.png",
   },
+  ios: {
+    bundleIdentifier: "com.adi77.smartshala", // ✅ Required for iOS builds or prebuild
+  },
   updates: {
     url: "https://u.expo.dev/3ad37c1a-cb50-4ee7-be0c-9c55f5f4561d",
   },
-  runtimeVersion: {
-    policy: "appVersion",
+  runtimeVersion: "1.0.0",
+  web: {
+    favicon: "./assets/favicon.png",
+    shortName: "SmartShala",
+    name: "SmartShala Teacher App",
+    description: "Manage attendance and students efficiently",
+    themeColor: "#0F172A",
+    backgroundColor: "#ffffff",
+    startUrl: "/?utm_source=pwa",
+    scope: "/",
+    display: "standalone",
+    orientation: "portrait",
+    icon: "./assets/logo.png",
   },
 };

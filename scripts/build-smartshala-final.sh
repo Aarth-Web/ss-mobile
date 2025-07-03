@@ -12,8 +12,8 @@ echo "📝 Copying production environment..."
 cp .env .env.backup
 cp .env.production .env
 
-echo "🔨 Building APK..."
-npx eas build -p android --profile apk-mvp
+echo "🔨 Building APK locally using EAS CLI..."
+npx eas build -p android --profile apk-mvp --local
 
 # Restore original files
 echo "🔄 Restoring original environment..."
@@ -21,6 +21,5 @@ cp .env.backup .env
 rm .env.backup
 
 echo "✅ Build process complete!"
-echo "The SmartShala APK will be available for download from the EAS dashboard."
-echo "You can find it at: https://expo.dev/accounts/adi77/projects/ss-mobile/builds"
-echo "⚠️ Note: The build might take some time to complete. You'll receive an email when it's ready."
+echo "The SmartShala APK has been built locally and is available in the build output directory."
+echo "You can directly transfer this APK to your device for testing."

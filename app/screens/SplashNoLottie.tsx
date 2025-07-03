@@ -65,7 +65,9 @@ export default function SplashNoLottie({
         <Animated.View style={[styles.logoContainer, animatedStyle]}>
           <View style={styles.fallbackContainer}>
             <Text style={styles.fallbackText}>SmartShala</Text>
-            <Text style={styles.fallbackSubText}>Your school management solution</Text>
+            <Text style={styles.fallbackSubText}>
+              Your school management solution
+            </Text>
           </View>
         </Animated.View>
       </View>
@@ -128,18 +130,21 @@ const styles = StyleSheet.create({
   fallbackText: {
     fontSize: 28,
     fontWeight: "bold",
+    fontFamily: "RedditSans-Bold",
     color: THEME.text.primary,
     marginBottom: 10,
   },
   fallbackSubText: {
     fontSize: 16,
     fontWeight: "500",
+    fontFamily: "RedditSans-Medium",
     color: THEME.text.secondary,
     textAlign: "center",
   },
   welcomeSmallText: {
     fontSize: 12,
     fontWeight: "600",
+    fontFamily: "RedditSans-Medium",
     color: THEME.text.secondary,
     textAlign: "center",
     letterSpacing: 2,
@@ -148,6 +153,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 32,
     fontWeight: "semibold",
+    fontFamily: "RedditSans-Bold",
     color: THEME.text.primary,
     textAlign: "center",
     marginBottom: 8,
@@ -159,6 +165,7 @@ const styles = StyleSheet.create({
   taglineText: {
     fontSize: 18,
     fontWeight: "500",
+    fontFamily: "RedditSans-Medium",
     color: THEME.text.secondary,
     textAlign: "center",
     opacity: 0.85,

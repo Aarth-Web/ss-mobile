@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import { ArrowLeftIcon, UserPlusIcon } from "react-native-heroicons/outline";
 import { GradientBackground, Button, THEME } from "../components/UIComponents";
 import { useNavigation } from "@react-navigation/native";
@@ -17,6 +18,35 @@ import type { RootStackParamList } from "../types/navigation";
 import { useAuth } from "../hooks/authContext";
 import apiConfig from "../config/api";
 import { createAuthFetchOptions, handleApiResponse } from "../utils/apiHelpers";
+
+type ParentLanguage =
+  | "english"
+  | "hindi"
+  | "marathi"
+  | "tamil"
+  | "telugu"
+  | "kannada"
+  | "malayalam"
+  | "gujarati"
+  | "bengali"
+  | "punjabi"
+  | "urdu"
+  | "odia";
+
+const parentLanguageOptions: ParentLanguage[] = [
+  "english",
+  "hindi",
+  "marathi",
+  "tamil",
+  "telugu",
+  "kannada",
+  "malayalam",
+  "gujarati",
+  "bengali",
+  "punjabi",
+  "urdu",
+  "odia",
+];
 
 export default function AddStudent() {
   const navigation =
@@ -27,7 +57,7 @@ export default function AddStudent() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
-  const [parentLanguage, setParentLanguage] = useState("");
+  const [parentLanguage, setParentLanguage] = useState<ParentLanguage | "">("");
   const [parentOccupation, setParentOccupation] = useState("");
 
   // Validation errors
@@ -111,7 +141,7 @@ export default function AddStudent() {
         schoolId: user?.school || "", // Use school ID from user context and ensure it's not undefined
         email: email.trim(),
         mobile: "+91" + mobile.trim(),
-        parentLanguage: parentLanguage.trim() || "hindi", // Default value
+        parentLanguage: parentLanguage || "", // Use selected language or empty string
         parentOccupation: parentOccupation.trim() || "Not specified", // Default value
       };
 
@@ -252,14 +282,24 @@ export default function AddStudent() {
             <Text className="text-white text-sm mb-2">
               Parent's Language (Optional)
             </Text>
-            <View className="bg-white/10 rounded-xl p-3 border border-white/20">
-              <TextInput
-                className="text-white"
-                placeholder="Enter parent's preferred language"
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                value={parentLanguage}
-                onChangeText={setParentLanguage}
-              />
+            <View className="bg-white/10 rounded-xl px-2 py-1 border border-white/20">
+              <Picker
+                selectedValue={parentLanguage}
+                onValueChange={(itemValue: string) =>
+                  setParentLanguage(itemValue as ParentLanguage)
+                }
+                dropdownIconColor="white"
+                style={{ color: "white" }}
+              >
+                <Picker.Item label="Select a language" value="" />
+                {parentLanguageOptions.map((language) => (
+                  <Picker.Item
+                    key={language}
+                    label={language.charAt(0).toUpperCase() + language.slice(1)}
+                    value={language}
+                  />
+                ))}
+              </Picker>
             </View>
           </View>
 

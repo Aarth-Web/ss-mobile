@@ -24,7 +24,10 @@ export default function Settings() {
             className="text-white"
             tintColor={"#ffffff"}
           />
-          <Text className="text-lg text-white font-semibold ml-0.5">
+          <Text
+            className="text-lg text-white ml-0.5"
+            style={{ fontFamily: "RedditSans-Bold" }}
+          >
             SmartShala
           </Text>
         </View>
@@ -35,7 +38,9 @@ export default function Settings() {
 
       {/* User Profile */}
       <View className="mt-4 mb-6">
-        <Text className="text-2xl font-bold text-white mb-2">User Profile</Text>
+        <Text className="text-2xl font-semibold text-white mb-2">
+          User Profile
+        </Text>
         <Text className="text-slate-300">
           View and manage your account information
         </Text>

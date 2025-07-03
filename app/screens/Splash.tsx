@@ -149,6 +149,7 @@ const styles = StyleSheet.create({
   welcomeSmallText: {
     fontSize: 12,
     fontWeight: "600",
+    fontFamily: "RedditSans-Medium",
     color: THEME.text.secondary,
     textAlign: "center",
     letterSpacing: 2,
@@ -157,6 +158,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 32,
     fontWeight: "semibold",
+    fontFamily: "RedditSans-Bold",
     color: THEME.text.primary,
     textAlign: "center",
     marginBottom: 8,
@@ -168,6 +170,7 @@ const styles = StyleSheet.create({
   taglineText: {
     fontSize: 18,
     fontWeight: "500",
+    fontFamily: "RedditSans-Medium",
     color: THEME.text.secondary,
     textAlign: "center",
     opacity: 0.85,
@@ -185,6 +188,7 @@ const styles = StyleSheet.create({
   fallbackText: {
     fontSize: 24,
     fontWeight: "bold",
+    fontFamily: "RedditSans-Bold",
     color: THEME.text.primary,
   },
 });
